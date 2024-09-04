@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_fire_engine/model/game.dart';
 import 'package:flutter_fire_engine/model/player.dart';
 import 'package:flutter_fire_engine/model/room.dart';
@@ -180,15 +181,20 @@ class GameManager {
     await reference.delete();
   }
 
-  Future<Map<String, dynamic>?> performEvent(Map<String, dynamic> event) async {
+  Future<CheckResult> performEvent(Map<String, dynamic> event) async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
     if (_room == null || _reference == null) throw Exception("Room not set.");
-    final log = _room?.checkPerformEvent(event: event, player: player);
-    if (log != null) return log;
+    final checkResult = _room!.checkPerformEvent(event: event, player: player);
+    if (checkResult is CheckResultFailure) {
+      if (kDebugMode) {
+        print(checkResult.message);
+      }
+      return checkResult;
+    }
     await _reference!
         .collection(_eventsCollectionName)
-        .add(event..addAll({_timestampName: Timestamp.now()}));
-    return null;
+        .add(event..addAll({_timestampName: DateTime.timestamp()}));
+    return checkResult;
   }
 
   void setOnGameEnd(void Function(Map<String, dynamic>) callback) {

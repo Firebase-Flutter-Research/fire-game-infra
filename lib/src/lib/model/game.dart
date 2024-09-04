@@ -1,5 +1,19 @@
 import 'package:flutter_fire_engine/model/player.dart';
 
+class CheckResult {
+  final String? message;
+
+  const CheckResult([this.message]);
+}
+
+class CheckResultSuccess extends CheckResult {
+  const CheckResultSuccess([super.message]);
+}
+
+class CheckResultFailure extends CheckResult {
+  const CheckResultFailure([super.message]);
+}
+
 abstract class Game {
   // Game ID name
   String get name;
@@ -9,8 +23,8 @@ abstract class Game {
       {required List<Player> players,
       required Player host});
 
-  // Check if player can perform an event and return data.
-  Map<String, dynamic>? checkPerformEvent(
+  // Check if player can perform an event and return the result.
+  CheckResult checkPerformEvent(
       {required Map<String, dynamic> event,
       required Player player,
       required Map<String, dynamic> gameState,
