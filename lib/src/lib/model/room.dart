@@ -1,21 +1,25 @@
+import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/game.dart';
 import 'package:flutter_fire_engine/model/player.dart';
 
 class RoomData {
   final List<Player> players;
   final Player host;
-  final List<Map<String, dynamic>> events;
+  final List<Event> events;
   final Map<String, dynamic> gameState;
 
   const RoomData(
-      {required this.players, required this.host, required this.events, required this.gameState});
+      {required this.players,
+      required this.host,
+      required this.events,
+      required this.gameState});
 }
 
 class Room {
   Game game;
   List<Player> players;
   Player host;
-  List<Map<String, dynamic>> events;
+  List<Event> events;
   Map<String, dynamic> gameState;
 
   Room(
@@ -40,7 +44,7 @@ class Room {
       required Game game,
       required List<Player> players,
       required Player host,
-      required List<Map<String, dynamic>> events}) {
+      required List<Event> events}) {
     return Room(
         game: game,
         players: players,
@@ -53,11 +57,12 @@ class Room {
   static Map<String, dynamic> getGameStateFromEvents(
       {required Game game,
       required List<Player> players,
-      required List<Map<String, dynamic>> events,
+      required List<Event> events,
       required Player host}) {
     final gameState = game.getInitialGameState(players: players, host: host);
     for (final event in events) {
-      game.processEvent(event: event, gameState: gameState, players: players, host: host);
+      game.processEvent(
+          event: event, gameState: gameState, players: players, host: host);
     }
     return gameState;
   }
@@ -71,10 +76,14 @@ class Room {
   Map<String, dynamic>? checkPerformEvent(
       {required Map<String, dynamic> event, required Player player}) {
     return game.checkPerformEvent(
-        event: event, player: player, gameState: gameState, players: players, host: host);
+        event: event,
+        player: player,
+        gameState: gameState,
+        players: players,
+        host: host);
   }
 
-  void processEvent(Map<String, dynamic> event) {
+  void processEvent(Event event) {
     return game.processEvent(
         event: event, gameState: gameState, players: players, host: host);
   }
@@ -90,7 +99,8 @@ class Room {
   }
 
   Map<String, dynamic>? checkGameEnd() {
-    return game.checkGameEnd(gameState: gameState, players: players, host: host);
+    return game.checkGameEnd(
+        gameState: gameState, players: players, host: host);
   }
 
   RoomData getRoomData() {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/game.dart';
 import 'package:flutter_fire_engine/model/player.dart';
 import 'package:flutter_fire_engine/model/room.dart';
@@ -11,6 +12,8 @@ class GameManager {
   static const _playersCollectionName = "Players";
   static const _eventsCollectionName = "Events";
   static const _timestampName = "timestamp";
+  static const _eventLimit = 3;
+
   static final _gameManager =
       GameManager(player: Player(id: Random().nextInt(0x80000000)));
 
@@ -19,7 +22,8 @@ class GameManager {
 
   Game? _game;
   Room? _room;
-  DocumentReference<Map<String, dynamic>>? _reference;
+  DocumentReference<Map<String, dynamic>>? _roomReference;
+  DocumentReference<Map<String, dynamic>>? _concatenatedEventReference;
   Stream<QuerySnapshot<Map<String, dynamic>>>? _playersStream;
   Stream<QuerySnapshot<Map<String, dynamic>>>? _eventsStream;
   Timestamp? _lastProcessedTimestamp;
@@ -32,7 +36,7 @@ class GameManager {
   String get collectionName => "$_collectionPrefix:${_game?.name}";
 
   Stream<RoomData> get roomDataStream => _roomDataStreamController.stream;
-  DocumentReference<Map<String, dynamic>>? get reference => _reference;
+  DocumentReference<Map<String, dynamic>>? get reference => _roomReference;
 
   void setGame(Game game) {
     _game = game;
@@ -73,37 +77,49 @@ class GameManager {
     }
   }
 
+  List<Event> fromConcatenatedEvents(
+      List<Map<String, dynamic>> concatenatedEvents) {
+    return concatenatedEvents
+        .expand((concatEvent) =>
+            List<Map<String, dynamic>>.from(concatEvent["events"])
+                .map((event) => Event.fromJson(event)))
+        .toList();
+  }
+
   void updateRoomData() {
     if (_room == null) throw Exception("Room not assigned");
     _roomDataStreamController.add(_room!.getRoomData());
   }
 
   void setupStreams() {
-    if (_reference == null || _room == null) {
+    if (_roomReference == null || _room == null) {
       throw Exception("Room reference not set");
     }
-    _playersStream = _reference!.collection(_playersCollectionName).snapshots();
-    _eventsStream = _reference!.collection(_eventsCollectionName).snapshots();
+    _playersStream =
+        _roomReference!.collection(_playersCollectionName).snapshots();
+    _eventsStream =
+        _roomReference!.collection(_eventsCollectionName).snapshots();
     _playersStream!.listen((playersSnapshot) {
-      if (_reference == null) return;
+      if (_roomReference == null) return;
       final players =
           playersSnapshot.docs.map((p) => Player.fromJson(p.data())).toList();
       callPlayerEvents(players);
       _room!.players = players;
       updateRoomData();
     });
-    _eventsStream!.listen((eventsSnapshot) {
-      if (_reference == null) return;
-      final events = eventsSnapshot.docs.map((e) => e.data()).toList()
-        ..sort((a, b) => a[_timestampName].compareTo(b[_timestampName]));
+    _eventsStream!.listen((eventsSnapshot) async {
+      if (_roomReference == null) return;
+      final events = fromConcatenatedEvents(
+          eventsSnapshot.docs.map((e) => e.data()).toList())
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
       final filteredEvents = events.where((e) =>
-          e[_timestampName].compareTo(_lastProcessedTimestamp ??
+          e.timestamp.compareTo(_lastProcessedTimestamp ??
               Timestamp.fromMillisecondsSinceEpoch(0)) >
           0);
       for (final event in filteredEvents) {
         _room!.processEvent(event);
       }
-      _lastProcessedTimestamp = events.lastOrNull?[_timestampName];
+      _lastProcessedTimestamp = events.lastOrNull?.timestamp;
       _room!.events = events;
       updateRoomData();
       final log = _room!.checkGameEnd();
@@ -111,26 +127,37 @@ class GameManager {
         // TODO: Add any other game end logic.
         if (_onGameEnd != null) _onGameEnd!(log);
       }
+      _concatenatedEventReference =
+          findCurrentConcatenation(eventsSnapshot.docs);
     });
   }
 
   Future<bool> createRoom() async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
-    if (_reference != null) return false;
+    if (_roomReference != null) return false;
     _room = Room.createRoom(game: _game!, player: player);
-    _reference = await FirebaseFirestore.instance
+    _roomReference = await FirebaseFirestore.instance
         .collection(collectionName)
         .add({"host": player.toJson()});
     setupStreams();
-    await _reference!.collection(_playersCollectionName).add(player.toJson());
+    await _roomReference!
+        .collection(_playersCollectionName)
+        .add(player.toJson());
     updateRoomData();
     return true;
+  }
+
+  Future<DocumentReference<Map<String, dynamic>>>
+      createConcatenatedEvent() async {
+    return _roomReference!
+        .collection(_eventsCollectionName)
+        .add({"events": []});
   }
 
   Future<bool> joinRoom(
       DocumentReference<Map<String, dynamic>> reference) async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
-    if (_reference != null) return false;
+    if (_roomReference != null) return false;
     final players = (await reference.collection(_playersCollectionName).get())
         .docs
         .map((e) => Player.fromJson(e.data()))
@@ -138,29 +165,41 @@ class GameManager {
     if (players.contains(player)) return false;
     final room = (await reference.get()).data();
     if (room == null) return false;
-
+    final eventDocs =
+        (await reference.collection(_eventsCollectionName).get()).docs;
     _room = Room.joinRoom(
         player: player,
         game: _game!,
         players: players,
         host: Player.fromJson(room["host"]),
-        events: (await reference.collection(_eventsCollectionName).get())
-            .docs
-            .map((e) => e.data())
-            .toList());
-    _reference = reference;
+        events:
+            fromConcatenatedEvents(eventDocs.map((e) => e.data()).toList()));
+    _roomReference = reference;
     setupStreams();
-    await _reference!.collection(_playersCollectionName).add(player.toJson());
+    await _roomReference!
+        .collection(_playersCollectionName)
+        .add(player.toJson());
     updateRoomData();
+    _concatenatedEventReference = findCurrentConcatenation(eventDocs);
     return true;
+  }
+
+  DocumentReference<Map<String, dynamic>>? findCurrentConcatenation(
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    for (var doc in docs) {
+      if (doc.data()["events"].length < _eventLimit) {
+        return doc.reference;
+      }
+    }
+    return null;
   }
 
   Future<bool> leaveRoom() async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
-    if (_room == null || _reference == null) return false;
+    if (_room == null || _roomReference == null) return false;
     final left = _room!.leaveRoom(player);
     if (!left) return false;
-    final playerReference = (await _reference
+    final playerReference = (await _roomReference
             ?.collection(_playersCollectionName)
             .where('id', isEqualTo: player.id)
             .get())
@@ -168,8 +207,8 @@ class GameManager {
         .firstOrNull
         ?.reference;
     await playerReference?.delete();
-    if (_room!.players.isEmpty) await deleteRoom(_reference!);
-    _reference = null;
+    if (_room!.players.isEmpty) await deleteRoom(_roomReference!);
+    _roomReference = null;
     _room = null;
     _createAndDisposeStream();
     return true;
@@ -182,12 +221,21 @@ class GameManager {
 
   Future<Map<String, dynamic>?> performEvent(Map<String, dynamic> event) async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
-    if (_room == null || _reference == null) throw Exception("Room not set.");
+    if (_room == null || _roomReference == null) {
+      throw Exception("Room not set.");
+    }
     final log = _room?.checkPerformEvent(event: event, player: player);
     if (log != null) return log;
-    await _reference!
-        .collection(_eventsCollectionName)
-        .add(event..addAll({_timestampName: Timestamp.now()}));
+    _concatenatedEventReference ??= await createConcatenatedEvent();
+    _concatenatedEventReference!.update({
+      "events": FieldValue.arrayUnion([
+        {
+          "timestamp": Timestamp.now(),
+          "author": player.toJson(),
+          "payload": event
+        }
+      ])
+    });
     return null;
   }
 
