@@ -1,3 +1,4 @@
+import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/player.dart';
 
 class CheckResult {
@@ -20,8 +21,7 @@ abstract class Game {
 
   // Return game state before moves are performed.
   Map<String, dynamic> getInitialGameState(
-      {required List<Player> players,
-      required Player host});
+      {required List<Player> players, required Player host});
 
   // Check if player can perform an event and return the result.
   CheckResult checkPerformEvent(
@@ -33,7 +33,7 @@ abstract class Game {
 
   // Process new event and return if it was successful.
   void processEvent(
-      {required Map<String, dynamic> event,
+      {required Event event,
       required Map<String, dynamic> gameState,
       required List<Player> players,
       required Player host});
