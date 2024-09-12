@@ -19,6 +19,9 @@ abstract class Game {
   // Game ID name
   String get name;
 
+  // Number of max allowed players
+  int get playerLimit;
+
   // Return game state before moves are performed.
   Map<String, dynamic> getInitialGameState(
       {required List<Player> players, required Player host});

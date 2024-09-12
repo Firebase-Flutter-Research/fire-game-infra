@@ -169,6 +169,7 @@ class GameManager {
         .docs
         .map((e) => Player.fromJson(e.data()))
         .toList();
+    if (players.length >= _game!.playerLimit) return false;
     if (players.contains(player)) return false;
     final room = (await reference.get()).data();
     if (room == null) return false;
