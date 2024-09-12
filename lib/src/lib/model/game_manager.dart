@@ -12,7 +12,6 @@ class GameManager {
   static const _collectionPrefix = "Rooms";
   static const _playersCollectionName = "Players";
   static const _eventsCollectionName = "Events";
-  static const _timestampName = "timestamp";
   static const _eventLimit = 100;
 
   static final _gameManager =
@@ -235,11 +234,8 @@ class GameManager {
     _concatenatedEventReference ??= await createConcatenatedEvent();
     _concatenatedEventReference!.update({
       "events": FieldValue.arrayUnion([
-        {
-          "timestamp": DateTime.timestamp(),
-          "author": player.toJson(),
-          "payload": event
-        }
+        Event(timestamp: Timestamp.now(), author: player, payload: event)
+            .toJson()
       ])
     });
     return checkResult;

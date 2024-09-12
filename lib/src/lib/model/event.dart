@@ -11,7 +11,7 @@ class Event {
 
   Map<String, dynamic> toJson() => {
         "timestamp": timestamp,
-        "author": author,
+        "author": author.toJson(),
         "payload": payload,
       };
 
