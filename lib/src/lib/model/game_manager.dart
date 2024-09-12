@@ -215,15 +215,25 @@ class GameManager {
         .firstOrNull
         ?.reference;
     await playerReference?.delete();
-    if (_room!.players.isEmpty) await deleteRoom(_roomReference!);
+    Future<void>? deleteRoomJob;
+    if (_room!.players.isEmpty) deleteRoomJob = deleteRoom(_roomReference!);
     _roomReference = null;
     _room = null;
     _createAndDisposeStream();
+    if (deleteRoomJob != null) await deleteRoomJob;
     return true;
   }
 
   Future<void> deleteRoom(
       DocumentReference<Map<String, dynamic>> reference) async {
+    final events = await reference.collection(_eventsCollectionName).get();
+    for (var event in events.docs) {
+      await event.reference.delete();
+    }
+    final players = await reference.collection(_playersCollectionName).get();
+    for (var player in players.docs) {
+      await player.reference.delete();
+    }
     await reference.delete();
   }
 
