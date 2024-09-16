@@ -19,6 +19,9 @@ abstract class Game {
   // Game ID name
   String get name;
 
+  // Count of required players to play
+  int get requiredPlayers;
+
   // Number of max allowed players
   int get playerLimit;
 
@@ -36,14 +39,7 @@ abstract class Game {
 
   // Process new event and return if it was successful.
   void processEvent(
-      {required Event event,
-      required Map<String, dynamic> gameState,
-      required List<Player> players,
-      required Player host});
-
-  // Handle when new player joins.
-  void onPlayerJoin(
-      {required Player player,
+      {required GameEvent event,
       required Map<String, dynamic> gameState,
       required List<Player> players,
       required Player host});

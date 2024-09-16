@@ -2,286 +2,168 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_fire_engine/model/event.dart';
+import 'package:flutter_fire_engine/model/firebase_room_communicator.dart';
 import 'package:flutter_fire_engine/model/game.dart';
 import 'package:flutter_fire_engine/model/player.dart';
 import 'package:flutter_fire_engine/model/room.dart';
 
 class GameManager {
-  static const _collectionPrefix = "Rooms";
-  static const _playersCollectionName = "Players";
-  static const _eventsCollectionName = "Events";
-  static const _eventLimit = 100;
-
   static final _gameManager =
-      GameManager(player: Player(id: Random().nextInt(0x80000000)));
+      GameManager(player: Player(id: Random().nextInt(0xFFFFFFFF)));
 
   final Player player;
-  var _roomDataStreamController = StreamController<RoomData>();
 
   Game? _game;
-  Room? _room;
-  DocumentReference<Map<String, dynamic>>? _roomReference;
-  DocumentReference<Map<String, dynamic>>? _concatenatedEventReference;
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _playersStream;
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _eventsStream;
-  Timestamp? _lastProcessedTimestamp;
-  void Function(Map<String, dynamic>)? _onGameEnd;
-  void Function(Player)? _onPlayerJoin;
-  void Function(Player)? _onPlayerLeave;
-  void Function(Event)? _onEventProcess;
-  void Function(CheckResultFailure)? _onEventFailure;
+  FirebaseRoomCommunicator? _firebaseRoomCommunicator;
+  bool _joiningRoom = false;
 
   GameManager({required this.player});
 
+  // Get global device GameManager instance.
   static GameManager get instance => _gameManager;
 
-  String get collectionName => "$_collectionPrefix:${_game?.name}";
+  // Get stream to read RoomData changes.
+  Stream<RoomData> get roomDataStream {
+    if (_firebaseRoomCommunicator == null) {
+      throw Exception("A room has not been joined.");
+    }
+    return _firebaseRoomCommunicator!.roomDataStream;
+  }
 
-  Stream<RoomData> get roomDataStream => _roomDataStreamController.stream;
-  DocumentReference<Map<String, dynamic>>? get reference => _roomReference;
+  // Get currently assigned game.
+  Game? get game => _game;
 
+  // Assign game.
   void setGame(Game game) {
     _game = game;
   }
 
+  // Check if a game has been assigned.
   bool hasGame() {
     return _game != null;
   }
 
+  // Set player's name.
   void setPlayerName(String name) {
     player.name = name;
   }
 
+  // Get stream of rooms from Firebase.
   Stream<QuerySnapshot<Map<String, dynamic>>> getRooms() {
     if (_game == null) throw Exception("Game has not been set");
-    return FirebaseFirestore.instance.collection(collectionName).snapshots();
+    return FirebaseRoomCommunicator.getRooms(_game!);
   }
 
-  void callPlayerEvents(List<Player> updatedPlayers) {
-    final oldPlayersSet = _room!.players.toSet();
-    final updatedPlayersSet = updatedPlayers.toSet();
-    final deletedPlayers = oldPlayersSet.difference(updatedPlayersSet);
-    final newPlayers = updatedPlayersSet.difference(oldPlayersSet);
-    final host = _room!.host;
-    for (final player in deletedPlayers) {
-      if (_onPlayerLeave != null) _onPlayerLeave!(player);
-      _game!.onPlayerLeave(
-          player: player,
-          gameState: _room!.gameState,
-          players: updatedPlayers,
-          host: host);
-    }
-    for (final player in newPlayers) {
-      if (_onPlayerJoin != null) _onPlayerJoin!(player);
-      _game!.onPlayerJoin(
-          player: player,
-          gameState: _room!.gameState,
-          players: updatedPlayers,
-          host: host);
-    }
-  }
-
-  List<Event> fromConcatenatedEvents(
-      List<Map<String, dynamic>> concatenatedEvents) {
-    return concatenatedEvents
-        .expand((concatEvent) =>
-            List<Map<String, dynamic>>.from(concatEvent["events"])
-                .map((event) => Event.fromJson(event)))
-        .toList();
-  }
-
-  void updateRoomData() {
-    if (_room == null) throw Exception("Room not assigned");
-    _roomDataStreamController.add(_room!.getRoomData());
-  }
-
-  void setupStreams() {
-    if (_roomReference == null || _room == null) {
-      throw Exception("Room reference not set");
-    }
-    _playersStream =
-        _roomReference!.collection(_playersCollectionName).snapshots();
-    _eventsStream =
-        _roomReference!.collection(_eventsCollectionName).snapshots();
-    _playersStream!.listen((playersSnapshot) {
-      if (_roomReference == null) return;
-      final players =
-          playersSnapshot.docs.map((p) => Player.fromJson(p.data())).toList();
-      callPlayerEvents(players);
-      _room!.players = players;
-      updateRoomData();
-    });
-    _eventsStream!.listen((eventsSnapshot) async {
-      if (_roomReference == null) return;
-      final events = fromConcatenatedEvents(
-          eventsSnapshot.docs.map((e) => e.data()).toList())
-        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      final filteredEvents = events.where((e) =>
-          e.timestamp.compareTo(_lastProcessedTimestamp ??
-              Timestamp.fromMillisecondsSinceEpoch(0)) >
-          0);
-      for (final event in filteredEvents) {
-        _room!.processEvent(event);
-        if (_onEventProcess != null) _onEventProcess!(event);
-      }
-      _lastProcessedTimestamp = events.lastOrNull?.timestamp;
-      _room!.events = events;
-      updateRoomData();
-      final log = _room!.checkGameEnd();
-      if (log != null) {
-        // TODO: Add any other game end logic.
-        if (_onGameEnd != null) _onGameEnd!(log);
-      }
-      _concatenatedEventReference =
-          findCurrentConcatenation(eventsSnapshot.docs);
-    });
-  }
-
+  // Create a new room and join it.
   Future<bool> createRoom() async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
-    if (_roomReference != null) return false;
-    _room = Room.createRoom(game: _game!, player: player);
-    _roomReference = await FirebaseFirestore.instance
-        .collection(collectionName)
-        .add({"host": player.toJson()});
-    setupStreams();
-    await _roomReference!
-        .collection(_playersCollectionName)
-        .add(player.toJson());
-    updateRoomData();
+    if (_firebaseRoomCommunicator != null || _joiningRoom) return false;
+    _joiningRoom = true;
+    _firebaseRoomCommunicator =
+        await FirebaseRoomCommunicator.createRoom(game: game!, player: player);
+    _joiningRoom = false;
     return true;
   }
 
-  Future<DocumentReference<Map<String, dynamic>>>
-      createConcatenatedEvent() async {
-    return _roomReference!
-        .collection(_eventsCollectionName)
-        .add({"events": []});
-  }
-
+  // Join a room from a Firebase document snapshot.
   Future<bool> joinRoom(
-      DocumentReference<Map<String, dynamic>> reference) async {
+      DocumentSnapshot<Map<String, dynamic>> roomSnapshot) async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
-    if (_roomReference != null) return false;
-    final players = (await reference.collection(_playersCollectionName).get())
-        .docs
-        .map((e) => Player.fromJson(e.data()))
-        .toList();
-    if (players.length >= _game!.playerLimit) return false;
-    if (players.contains(player)) return false;
-    final room = (await reference.get()).data();
-    if (room == null) return false;
-    final eventDocs =
-        (await reference.collection(_eventsCollectionName).get()).docs;
-    _room = Room.joinRoom(
-        player: player,
-        game: _game!,
-        players: players,
-        host: Player.fromJson(room["host"]),
-        events:
-            fromConcatenatedEvents(eventDocs.map((e) => e.data()).toList()));
-    _roomReference = reference;
-    setupStreams();
-    await _roomReference!
-        .collection(_playersCollectionName)
-        .add(player.toJson());
-    updateRoomData();
-    _concatenatedEventReference = findCurrentConcatenation(eventDocs);
-    return true;
+    if (_firebaseRoomCommunicator != null || _joiningRoom) return false;
+    _joiningRoom = true;
+    _firebaseRoomCommunicator = await FirebaseRoomCommunicator.joinRoom(
+        roomSnapshot: roomSnapshot, game: game!, player: player);
+    _joiningRoom = false;
+    return _firebaseRoomCommunicator != null;
   }
 
-  DocumentReference<Map<String, dynamic>>? findCurrentConcatenation(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
-    for (var doc in docs) {
-      if (doc.data()["events"].length < _eventLimit) {
-        return doc.reference;
-      }
-    }
-    return null;
-  }
-
-  Future<bool> leaveRoom() async {
+  // Leave current room.
+  Future<void> leaveRoom() async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
-    if (_room == null || _roomReference == null) return false;
-    final left = _room!.leaveRoom(player);
-    if (!left) return false;
-    final playerReference = (await _roomReference
-            ?.collection(_playersCollectionName)
-            .where('id', isEqualTo: player.id)
-            .get())
-        ?.docs
-        .firstOrNull
-        ?.reference;
-    await playerReference?.delete();
-    Future<void>? deleteRoomJob;
-    if (_room!.players.isEmpty) deleteRoomJob = deleteRoom(_roomReference!);
-    _roomReference = null;
-    _room = null;
-    _createAndDisposeStream();
-    if (deleteRoomJob != null) await deleteRoomJob;
-    return true;
+    if (_firebaseRoomCommunicator == null) return;
+    final firebaseCommunicator = _firebaseRoomCommunicator!;
+    _firebaseRoomCommunicator = null;
+    await firebaseCommunicator
+        .leaveRoom(); // Use copy in case onLeave function specified by developer is faulty
   }
 
-  Future<void> deleteRoom(
-      DocumentReference<Map<String, dynamic>> reference) async {
-    final events = await reference.collection(_eventsCollectionName).get();
-    for (var event in events.docs) {
-      await event.reference.delete();
-    }
-    final players = await reference.collection(_playersCollectionName).get();
-    for (var player in players.docs) {
-      await player.reference.delete();
-    }
-    await reference.delete();
-  }
-
-  Future<CheckResult> performEvent(Map<String, dynamic> event) async {
+  // Send event to be processed by the game rules. Takes a payload json as input and returns a result.
+  Future<CheckResult> sendGameEvent(Map<String, dynamic> event) async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
-    if (_room == null || _roomReference == null) {
-      throw Exception("Room not set.");
+    if (_firebaseRoomCommunicator == null) {
+      throw Exception("A room has not been joined.");
     }
-    final checkResult = _room!.checkPerformEvent(event: event, player: player);
-    if (checkResult is CheckResultFailure) {
-      if (_onEventFailure != null) _onEventFailure!(checkResult);
-      if (kDebugMode) {
-        print(checkResult.message);
-      }
-      return checkResult;
-    }
-    _concatenatedEventReference ??= await createConcatenatedEvent();
-    _concatenatedEventReference!.update({
-      "events": FieldValue.arrayUnion([
-        Event(timestamp: Timestamp.now(), author: player, payload: event)
-            .toJson()
-      ])
-    });
-    return checkResult;
+    return await _firebaseRoomCommunicator!.sendGameEvent(event);
   }
 
-  void setOnGameEnd(void Function(Map<String, dynamic>) callback) {
-    _onGameEnd = callback;
+  // Start a game. Can only be called by the host. Returns a result.
+  Future<CheckResult> startGame() async {
+    if (_game == null) throw Exception("Game not found. Ensure game is set.");
+    if (_firebaseRoomCommunicator == null) {
+      throw Exception("A room has not been joined.");
+    }
+    return await _firebaseRoomCommunicator!.startGame();
   }
 
+  // Stop the current game. Can only be called by the host.
+  Future<void> stopGame([Map<String, dynamic>? log]) async {
+    if (_game == null) throw Exception("Game not found. Ensure game is set.");
+    if (_firebaseRoomCommunicator == null) return;
+    await _firebaseRoomCommunicator!.stopGame(log);
+  }
+
+  // Pass event function to be called when a player joins.
   void setOnPlayerJoin(void Function(Player) callback) {
-    _onPlayerJoin = callback;
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnPlayerJoin(callback);
   }
 
+  // Pass event function to be called when a player leaves.
   void setOnPlayerLeave(void Function(Player) callback) {
-    _onPlayerLeave = callback;
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnPlayerLeave(callback);
   }
 
-  void setOnEventProcess(void Function(Event) callback) {
-    _onEventProcess = callback;
+  // Pass event function to be called when you leave.
+  void setOnLeave(void Function() callback) {
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnLeave(callback);
   }
 
-  void setOnEventFailure(void Function(CheckResultFailure) callback) {
-    _onEventFailure = callback;
+  // Pass event function to be called when a game event has been received.
+  void setOnGameEvent(void Function(GameEvent) callback) {
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnGameEvent(callback);
   }
 
-  void _createAndDisposeStream() {
-    _roomDataStreamController.close();
-    _roomDataStreamController = StreamController();
+  // Pass event function to be called when an event fails.
+  void setOnGameEventFailure(void Function(CheckResultFailure) callback) {
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnGameEventFailure(callback);
+  }
+
+  // Pass event function to be called when the game starts.
+  void setOnGameStart(void Function() callback) {
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnGameStart(callback);
+  }
+
+  // Pass event function to be called when the game cannot be started.
+  void setOnGameStartFailure(void Function(CheckResultFailure) callback) {
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnGameStartFailure(callback);
+  }
+
+  // Pass event function to be called when the game is stopped.
+  void setOnGameStop(void Function(Map<String, dynamic>?) callback) {
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnGameStop(callback);
+  }
+
+  // Pass event function to be called when the host is reassigned.
+  void setOnHostReassigned(void Function(Player, Player) callback) {
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnHostReassigned(callback);
   }
 }
