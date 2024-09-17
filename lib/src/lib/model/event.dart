@@ -7,7 +7,8 @@ enum EventType {
   playerLeave(key: "playerLeave"),
   gameStart(key: "gameStart"),
   gameStop(key: "gameStop"),
-  hostReassigned(key: "hostReassigned");
+  hostReassigned(key: "hostReassigned"),
+  other(key: "other");
 
   final String key;
 

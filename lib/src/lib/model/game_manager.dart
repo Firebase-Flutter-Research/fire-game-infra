@@ -113,6 +113,11 @@ class GameManager {
     await _firebaseRoomCommunicator!.stopGame(log);
   }
 
+  Future<void> sendOtherEvent(Map<String, dynamic> payload) async {
+    if (_firebaseRoomCommunicator == null) return;
+    await _firebaseRoomCommunicator!.sendOtherEvent(payload);
+  }
+
   // Pass event function to be called when a player joins.
   void setOnPlayerJoin(void Function(Player) callback) {
     if (_firebaseRoomCommunicator == null) return;
@@ -165,5 +170,11 @@ class GameManager {
   void setOnHostReassigned(void Function(Player, Player) callback) {
     if (_firebaseRoomCommunicator == null) return;
     _firebaseRoomCommunicator!.setOnHostReassigned(callback);
+  }
+
+  // Pass event function to be called when an other event is received.
+  void setOnOtherEvent(void Function(Event) callback) {
+    if (_firebaseRoomCommunicator == null) return;
+    _firebaseRoomCommunicator!.setOnOtherEvent(callback);
   }
 }

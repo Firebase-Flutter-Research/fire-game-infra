@@ -36,6 +36,7 @@ class FirebaseRoomCommunicator {
   void Function(CheckResultFailure)? _onGameStartFailure;
   void Function(Map<String, dynamic>?)? _onGameStop;
   void Function(Player, Player)? _onHostReassigned;
+  void Function(Event)? _onOtherEvent;
 
   DocumentReference<Map<String, dynamic>>? _concatenatedEventReference;
 
@@ -189,6 +190,10 @@ class FirebaseRoomCommunicator {
     await _sendEvent(EventType.gameStop, log);
   }
 
+  Future<void> sendOtherEvent(Map<String, dynamic> payload) async {
+    await _sendEvent(EventType.other, payload);
+  }
+
   Future<DocumentReference<Map<String, dynamic>>>
       _createConcatenatedEvent() async {
     return roomReference.collection(_eventsCollectionName).add({"events": []});
@@ -255,6 +260,8 @@ class FirebaseRoomCommunicator {
       case EventType.hostReassigned:
         return _processHostReassignedEvent(
             Player.fromJson(event.payload!["player"]), event.author);
+      case EventType.other:
+        return _processOtherEvent(event);
     }
   }
 
@@ -308,6 +315,10 @@ class FirebaseRoomCommunicator {
     }
   }
 
+  void _processOtherEvent(Event event) async {
+    if (_readingLiveEvents && _onOtherEvent != null) _onOtherEvent!(event);
+  }
+
   void setOnPlayerJoin(void Function(Player) callback) {
     _onPlayerJoin = callback;
   }
@@ -342,5 +353,9 @@ class FirebaseRoomCommunicator {
 
   void setOnHostReassigned(void Function(Player, Player) callback) {
     _onHostReassigned = callback;
+  }
+
+  void setOnOtherEvent(void Function(Event) callback) {
+    _onOtherEvent = callback;
   }
 }
