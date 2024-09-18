@@ -25,6 +25,9 @@ abstract class Game {
   // Number of max allowed players
   int get playerLimit;
 
+  // Set to true if the game does not depend on the order that players send events simultaneously.
+  bool get ignoreSimultaneousEventOrdering => false;
+
   // Return game state before moves are performed.
   Map<String, dynamic> getInitialGameState(
       {required List<Player> players, required Player host});
