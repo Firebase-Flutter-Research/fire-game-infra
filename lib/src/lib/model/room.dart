@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/game.dart';
 import 'package:flutter_fire_engine/model/player.dart';
@@ -43,6 +45,7 @@ class Room {
   Player host;
   List<Event> events;
   Map<String, dynamic>? gameState;
+  late Random random;
 
   Room(
       {required this.game,
@@ -68,15 +71,24 @@ class Room {
   void leaveRoom(Player player) {
     if (!players.contains(player)) return;
     players.remove(player);
+    onPlayerLeave(player, players);
   }
 
-  CheckResult startGame(List<Player> players) {
+  CheckResult checkStartGame() {
     if (gameStarted) return const GameHasStarted();
     if (!hasRequiredPlayers) return const NotEnoughPlayers();
     if (isOvercapacity) return const TooManyPlayers();
-    this.players = players;
-    gameState = game.getInitialGameState(players: players, host: host);
     return const CheckResultSuccess();
+  }
+
+  CheckResult startGame(List<Player> players, int seed) {
+    final checkResult = checkStartGame();
+    if (checkResult is CheckResultFailure) return checkResult;
+    this.players = players;
+    random = Random(seed);
+    gameState =
+        game.getInitialGameState(players: players, host: host, random: random);
+    return checkResult;
   }
 
   bool stopGame() {
@@ -99,20 +111,28 @@ class Room {
   void processEvent(GameEvent event) {
     if (!gameStarted) return;
     game.processEvent(
-        event: event, gameState: gameState!, players: players, host: host);
+        event: event,
+        gameState: gameState!,
+        players: players,
+        host: host,
+        random: random);
   }
 
   void onPlayerLeave(Player player, List<Player> updatedPlayers) {
     if (gameStarted) {
       game.onPlayerLeave(
-          player: player, gameState: gameState!, players: players, host: host);
+          player: player,
+          gameState: gameState!,
+          players: players,
+          host: host,
+          random: random);
     }
   }
 
   Map<String, dynamic>? checkGameEnd() {
     if (!gameStarted) return null;
     return game.checkGameEnd(
-        gameState: gameState!, players: players, host: host);
+        gameState: gameState!, players: players, host: host, random: random);
   }
 
   RoomData getRoomData() {

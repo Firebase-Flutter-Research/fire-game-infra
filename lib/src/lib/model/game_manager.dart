@@ -137,7 +137,7 @@ class GameManager {
   }
 
   // Pass event function to be called when a game event has been received.
-  void setOnGameEvent(void Function(GameEvent) callback) {
+  void setOnGameEvent(void Function(GameEvent, Map<String, dynamic>) callback) {
     if (_firebaseRoomCommunicator == null) return;
     _firebaseRoomCommunicator!.setOnGameEvent(callback);
   }
@@ -149,7 +149,7 @@ class GameManager {
   }
 
   // Pass event function to be called when the game starts.
-  void setOnGameStart(void Function() callback) {
+  void setOnGameStart(void Function(Map<String, dynamic>) callback) {
     if (_firebaseRoomCommunicator == null) return;
     _firebaseRoomCommunicator!.setOnGameStart(callback);
   }

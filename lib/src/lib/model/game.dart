@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/player.dart';
 
@@ -27,7 +29,9 @@ abstract class Game {
 
   // Return game state before moves are performed.
   Map<String, dynamic> getInitialGameState(
-      {required List<Player> players, required Player host});
+      {required List<Player> players,
+      required Player host,
+      required Random random});
 
   // Check if player can perform an event and return the result.
   CheckResult checkPerformEvent(
@@ -42,18 +46,21 @@ abstract class Game {
       {required GameEvent event,
       required Map<String, dynamic> gameState,
       required List<Player> players,
-      required Player host});
+      required Player host,
+      required Random random});
 
   // Handle when player leaves room.
   void onPlayerLeave(
       {required Player player,
       required Map<String, dynamic> gameState,
       required List<Player> players,
-      required Player host});
+      required Player host,
+      required Random random});
 
   // Determine when the game has ended and return game end data.
   Map<String, dynamic>? checkGameEnd(
       {required Map<String, dynamic> gameState,
       required List<Player> players,
-      required Player host});
+      required Player host,
+      required Random random});
 }
