@@ -45,6 +45,11 @@ class GameManager {
     return _game != null;
   }
 
+  // Check if a room has been assigned.
+  bool hasRoom() {
+    return _firebaseRoomCommunicator != null;
+  }
+
   // Set player's name.
   void setPlayerName(String name) {
     player.name = name;
