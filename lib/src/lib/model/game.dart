@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:either_dart/either.dart';
 import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/player.dart';
 
@@ -15,6 +16,10 @@ class CheckResultSuccess extends CheckResult {
 
 class CheckResultFailure extends CheckResult {
   const CheckResultFailure([super.message]);
+}
+
+class UndefinedGameResponse extends CheckResultFailure {
+  const UndefinedGameResponse() : super("Undefined Game Response");
 }
 
 abstract class Game {
@@ -63,4 +68,13 @@ abstract class Game {
       required List<Player> players,
       required Player host,
       required Random random});
+
+  Either<CheckResultFailure, dynamic> getGameResponse(
+      {required Map<String, dynamic> request,
+      required Player player,
+      required Map<String, dynamic> gameState,
+      required List<Player> players,
+      required Player host}) {
+    return const Left(UndefinedGameResponse());
+  }
 }

@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:either_dart/either.dart';
 import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/game.dart';
 import 'package:flutter_fire_engine/model/player.dart';
@@ -142,5 +143,16 @@ class Room {
         host: host,
         events: events.toList(),
         gameState: gameStarted ? Map.from(gameState!) : null);
+  }
+
+  Either<CheckResultFailure, dynamic> getGameResponse(
+      Map<String, dynamic> request, Player player) {
+    if (!gameStarted) return const Left(GameHasNotStarted());
+    return game.getGameResponse(
+        request: request,
+        player: player,
+        gameState: gameState!,
+        players: players,
+        host: host);
   }
 }

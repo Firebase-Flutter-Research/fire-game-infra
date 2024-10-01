@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:either_dart/either.dart';
 import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/game.dart';
 import 'package:flutter_fire_engine/model/player.dart';
@@ -42,6 +43,7 @@ class FirebaseRoomCommunicator {
   void Function(Map<String, dynamic>?)? _onGameStop;
   void Function(Player, Player)? _onHostReassigned;
   void Function(Event)? _onOtherEvent;
+  void Function(CheckResultFailure)? _onGameResponseFailure;
 
   DocumentReference<Map<String, dynamic>>? _concatenatedEventReference;
 
@@ -379,5 +381,18 @@ class FirebaseRoomCommunicator {
 
   void setOnOtherEvent(void Function(Event) callback) {
     _onOtherEvent = callback;
+  }
+
+  void setOnGameResponseFailure(void Function(CheckResultFailure) callback) {
+    _onGameResponseFailure = callback;
+  }
+
+  Either<CheckResultFailure, dynamic> getGameResponse(
+      Map<String, dynamic> request) {
+    final response = room.getGameResponse(request, player);
+    if (_onGameResponseFailure != null && response.isLeft) {
+      _onGameResponseFailure!(response.left);
+    }
+    return response;
   }
 }
