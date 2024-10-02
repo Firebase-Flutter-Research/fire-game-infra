@@ -71,8 +71,9 @@ class Room {
 
   void leaveRoom(Player player) {
     if (!players.contains(player)) return;
+    List<Player> oldPlayers = players.toList();
     players.remove(player);
-    onPlayerLeave(player, players);
+    onPlayerLeave(player, oldPlayers);
   }
 
   CheckResult checkStartGame() {
@@ -119,12 +120,13 @@ class Room {
         random: random);
   }
 
-  void onPlayerLeave(Player player, List<Player> updatedPlayers) {
+  void onPlayerLeave(Player player, List<Player> oldPlayers) {
     if (gameStarted) {
       game.onPlayerLeave(
           player: player,
           gameState: gameState!,
           players: players,
+          oldPlayers: oldPlayers,
           host: host,
           random: random);
     }

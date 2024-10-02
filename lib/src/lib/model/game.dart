@@ -59,6 +59,7 @@ abstract class Game {
       {required Player player,
       required Map<String, dynamic> gameState,
       required List<Player> players,
+      required List<Player> oldPlayers,
       required Player host,
       required Random random});
 
