@@ -143,9 +143,10 @@ class FirebaseRoomCommunicator {
 
       if (room.players.isNotEmpty) {
         if (room.host == player) {
-          await _sendEvent(EventType.hostReassigned,
-              {"player": room.players.first.toJson()});
-          await roomReference.update({"host": room.players.first.toJson()});
+          final newHost = room.players.first;
+          await _sendEvent(
+              EventType.hostReassigned, {"player": newHost.toJson()});
+          await roomReference.update({"host": newHost.toJson()});
         }
       } else {
         _deleteRoom(roomReference);
@@ -212,22 +213,21 @@ class FirebaseRoomCommunicator {
 
   Future<DocumentReference<Map<String, dynamic>>>
       _createConcatenatedEvent() async {
-    return roomReference.collection(_eventsCollectionName).add({"events": []});
+    return roomReference.collection(_eventsCollectionName).add({});
   }
 
   List<Event> _fromConcatenatedEvents(
       List<Map<String, dynamic>> concatenatedEvents) {
     return concatenatedEvents
         .expand((concatEvent) =>
-            List<Map<String, dynamic>>.from(concatEvent["events"])
-                .map((event) => Event.fromJson(event)))
+            concatEvent.values.map((event) => Event.fromJson(event)))
         .toList();
   }
 
   DocumentReference<Map<String, dynamic>>? _findCurrentConcatenation(
       List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
     for (var doc in docs) {
-      if (doc.data()["events"].length < _eventLimit) {
+      if (doc.data().values.length < _eventLimit) {
         return doc.reference;
       }
     }
@@ -242,16 +242,17 @@ class FirebaseRoomCommunicator {
   Future<void> _sendEvent(EventType type,
       [Map<String, dynamic>? payload]) async {
     _concatenatedEventReference ??= await _createConcatenatedEvent();
-    await _concatenatedEventReference!.update({
-      "events": FieldValue.arrayUnion([
-        Event(
-                id: _randomInt,
-                type: type,
-                timestamp: Timestamp.now(),
-                author: player,
-                payload: payload)
-            .toJson()
-      ])
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      int id = _randomInt;
+      transaction.update(_concatenatedEventReference!, {
+        id.toString(): {
+          "id": id,
+          "type": type.key,
+          "timestamp": FieldValue.serverTimestamp(),
+          "author": player.toJson(),
+          "payload": payload
+        }
+      });
     });
     await roomReference
         .update({"lastUpdateTimestamp": FieldValue.serverTimestamp()});
