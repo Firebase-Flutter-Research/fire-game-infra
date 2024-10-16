@@ -12,10 +12,6 @@ class NotRoomHost extends CheckResultFailure {
   const NotRoomHost() : super("Player is not the room's host");
 }
 
-class AnotherEventProcessing extends CheckResultFailure {
-  const AnotherEventProcessing() : super("Another event is being processed");
-}
-
 class FirebaseRoomCommunicator {
   static const _collectionPrefix = "Rooms";
   static const _eventsCollectionName = "Events";
@@ -31,7 +27,6 @@ class FirebaseRoomCommunicator {
   late Completer<void> _joinRoomResponse;
   late StreamController<RoomData> _roomDataStreamController;
   bool _readingLiveEvents = false;
-  bool _processingGameEvent = false;
 
   void Function(Player)? _onPlayerJoin;
   void Function(Player)? _onPlayerLeave;
@@ -168,7 +163,6 @@ class FirebaseRoomCommunicator {
   }
 
   Future<CheckResult> sendGameEvent(Map<String, dynamic> event) async {
-    if (_processingGameEvent) return const AnotherEventProcessing();
     final checkResult = room.checkPerformEvent(event: event, player: player);
     if (checkResult is CheckResultFailure) {
       if (_onGameEventFailure != null && _readingLiveEvents) {
@@ -176,7 +170,6 @@ class FirebaseRoomCommunicator {
       }
       return checkResult;
     }
-    _processingGameEvent = true;
     await _sendEvent(EventType.gameEvent, event);
     return checkResult;
   }
@@ -287,6 +280,16 @@ class FirebaseRoomCommunicator {
   }
 
   void _processGameEvent(GameEvent event) async {
+    final checkResult =
+        room.checkPerformEvent(event: event.payload, player: event.author);
+    if (checkResult is CheckResultFailure) {
+      if (player == event.author &&
+          _onGameEventFailure != null &&
+          _readingLiveEvents) {
+        _onGameEventFailure!(checkResult);
+      }
+      return;
+    }
     room.processEvent(event);
     if (_onGameEvent != null && _readingLiveEvents) {
       _onGameEvent!(event, room.gameState!);
@@ -294,9 +297,6 @@ class FirebaseRoomCommunicator {
     final log = room.checkGameEnd();
     if (_readingLiveEvents && log != null) {
       await stopGame(log);
-    }
-    if (event.author == player) {
-      _processingGameEvent = false;
     }
   }
 
