@@ -38,6 +38,10 @@ class RoomData {
       required this.host,
       required this.events,
       required this.gameState});
+
+  dynamic operator [](String key) {
+    return gameState?[key];
+  }
 }
 
 class Room {

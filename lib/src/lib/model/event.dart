@@ -25,6 +25,10 @@ class GameEvent {
 
   const GameEvent(
       {required this.timestamp, required this.author, required this.payload});
+
+  dynamic operator [](String key) {
+    return payload[key];
+  }
 }
 
 class Event {
@@ -64,4 +68,8 @@ class Event {
 
   @override
   int get hashCode => id.hashCode;
+
+  dynamic operator [](String key) {
+    return payload?[key];
+  }
 }
