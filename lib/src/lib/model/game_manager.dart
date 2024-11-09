@@ -62,24 +62,27 @@ class GameManager {
   }
 
   // Create a new room and join it.
-  Future<bool> createRoom() async {
+  Future<bool> createRoom([String? password]) async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
     if (_firebaseRoomCommunicator != null || _joiningRoom) return false;
     _joiningRoom = true;
-    _firebaseRoomCommunicator =
-        await FirebaseRoomCommunicator.createRoom(game: game!, player: player);
+    _firebaseRoomCommunicator = await FirebaseRoomCommunicator.createRoom(
+        game: game!, player: player, password: password);
     _joiningRoom = false;
     return true;
   }
 
   // Join a room from a Firebase document snapshot.
-  Future<bool> joinRoom(
-      DocumentSnapshot<Map<String, dynamic>> roomSnapshot) async {
+  Future<bool> joinRoom(DocumentSnapshot<Map<String, dynamic>> roomSnapshot,
+      [String? password]) async {
     if (_game == null) throw Exception("Game not found. Ensure game is set.");
     if (_firebaseRoomCommunicator != null || _joiningRoom) return false;
     _joiningRoom = true;
     _firebaseRoomCommunicator = await FirebaseRoomCommunicator.joinRoom(
-        roomSnapshot: roomSnapshot, game: game!, player: player);
+        roomSnapshot: roomSnapshot,
+        game: game!,
+        player: player,
+        password: password);
     _joiningRoom = false;
     return _firebaseRoomCommunicator != null;
   }

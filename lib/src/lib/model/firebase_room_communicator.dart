@@ -83,7 +83,7 @@ class FirebaseRoomCommunicator {
   }
 
   static Future<FirebaseRoomCommunicator> createRoom(
-      {required Game game, required Player player}) async {
+      {required Game game, required Player player, String? password}) async {
     final firebaseRoomCommunicator = FirebaseRoomCommunicator(
         game,
         player,
@@ -93,6 +93,7 @@ class FirebaseRoomCommunicator {
           "host": player.toJson(),
           "playerCount": 0,
           "gameStarted": false,
+          "password": password,
           "lastUpdateTimestamp": FieldValue.serverTimestamp()
         }),
         Room.createRoom(game: game, host: player));
@@ -106,9 +107,12 @@ class FirebaseRoomCommunicator {
   static Future<FirebaseRoomCommunicator?> joinRoom(
       {required DocumentSnapshot<Map<String, dynamic>> roomSnapshot,
       required Game game,
-      required Player player}) async {
+      required Player player,
+      String? password}) async {
     if (roomSnapshot["playerCount"] >= game.playerLimit ||
         roomSnapshot["gameStarted"] ||
+        (roomSnapshot["password"] != null &&
+            roomSnapshot["password"] != password) ||
         !roomSnapshot.exists) return null;
     final firebaseRoomCommunicator = FirebaseRoomCommunicator(
         game,
