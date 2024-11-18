@@ -1,5 +1,3 @@
-library fire_game_infra;
-
 export 'src/event.dart';
 export 'src/firebase_room_communicator.dart';
 export 'src/firebase_room_data.dart';

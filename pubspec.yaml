@@ -1,9 +1,9 @@
-name: flutter_fire_engine_package
+name: fire_game_infra
 description: "A new Flutter project."
 version: 0.0.1
 
 environment:
-  sdk: ^3.0.0
+  sdk: ^3.4.0
   flutter: ">=1.17.0"
 
 dependencies:
