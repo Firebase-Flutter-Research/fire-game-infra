@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_fire_engine/model/event.dart';
 import 'package:flutter_fire_engine/model/firebase_room_communicator.dart';
+import 'package:flutter_fire_engine/model/firebase_room_data.dart';
 import 'package:flutter_fire_engine/model/game.dart';
 import 'package:flutter_fire_engine/model/player.dart';
 import 'package:flutter_fire_engine/model/room.dart';
@@ -15,7 +16,6 @@ class GameManager {
 
   final Player player;
 
-  Game? _game;
   FirebaseRoomCommunicator? _firebaseRoomCommunicator;
   bool _joiningRoom = false;
 
@@ -32,18 +32,8 @@ class GameManager {
     return _firebaseRoomCommunicator!.roomDataStream;
   }
 
-  // Get currently assigned game.
-  Game? get game => _game;
-
-  // Assign game.
-  void setGame(Game game) {
-    _game = game;
-  }
-
-  // Check if a game has been assigned.
-  bool hasGame() {
-    return _game != null;
-  }
+  // Get currently assigned room's game.
+  Game? get game => _firebaseRoomCommunicator?.room.game;
 
   // Check if a room has been assigned.
   bool hasRoom() {
@@ -56,31 +46,27 @@ class GameManager {
   }
 
   // Get stream of rooms from Firebase.
-  Stream<QuerySnapshot<Map<String, dynamic>>> getRooms() {
-    if (_game == null) throw Exception("Game has not been set");
-    return FirebaseRoomCommunicator.getRooms(_game!);
+  Stream<QuerySnapshot<Map<String, dynamic>>> getRooms(Game game) {
+    return FirebaseRoomCommunicator.getRooms(game);
   }
 
   // Create a new room and join it.
-  Future<bool> createRoom([String? password]) async {
-    if (_game == null) throw Exception("Game not found. Ensure game is set.");
+  Future<bool> createRoom(Game game, [String? password]) async {
     if (_firebaseRoomCommunicator != null || _joiningRoom) return false;
     _joiningRoom = true;
     _firebaseRoomCommunicator = await FirebaseRoomCommunicator.createRoom(
-        game: game!, player: player, password: password);
+        game: game, player: player, password: password);
     _joiningRoom = false;
     return true;
   }
 
-  // Join a room from a Firebase document snapshot.
-  Future<bool> joinRoom(DocumentSnapshot<Map<String, dynamic>> roomSnapshot,
-      [String? password]) async {
-    if (_game == null) throw Exception("Game not found. Ensure game is set.");
+  // Join a room from a Firebase room data object.
+  Future<bool> joinRoom(FirebaseRoomData roomData, [String? password]) async {
     if (_firebaseRoomCommunicator != null || _joiningRoom) return false;
     _joiningRoom = true;
     _firebaseRoomCommunicator = await FirebaseRoomCommunicator.joinRoom(
-        roomSnapshot: roomSnapshot,
-        game: game!,
+        roomSnapshot: roomData.document,
+        game: roomData.game,
         player: player,
         password: password);
     _joiningRoom = false;
@@ -89,7 +75,6 @@ class GameManager {
 
   // Leave current room.
   Future<void> leaveRoom() async {
-    if (_game == null) throw Exception("Game not found. Ensure game is set.");
     if (_firebaseRoomCommunicator == null) return;
     final firebaseCommunicator = _firebaseRoomCommunicator!;
     _firebaseRoomCommunicator = null;
@@ -99,7 +84,6 @@ class GameManager {
 
   // Send event to be processed by the game rules. Takes a payload json as input and returns a result.
   Future<CheckResult> sendGameEvent(Map<String, dynamic> event) async {
-    if (_game == null) throw Exception("Game not found. Ensure game is set.");
     if (_firebaseRoomCommunicator == null) {
       throw Exception("A room has not been joined.");
     }
@@ -108,7 +92,6 @@ class GameManager {
 
   // Start a game. Can only be called by the host. Returns a result.
   Future<CheckResult> startGame() async {
-    if (_game == null) throw Exception("Game not found. Ensure game is set.");
     if (_firebaseRoomCommunicator == null) {
       throw Exception("A room has not been joined.");
     }
@@ -117,7 +100,6 @@ class GameManager {
 
   // Stop the current game. Can only be called by the host.
   Future<void> stopGame([Map<String, dynamic>? log]) async {
-    if (_game == null) throw Exception("Game not found. Ensure game is set.");
     if (_firebaseRoomCommunicator == null) return;
     await _firebaseRoomCommunicator!.stopGame(log);
   }
@@ -190,7 +172,6 @@ class GameManager {
 
   Either<CheckResultFailure, dynamic> getGameResponse(
       Map<String, dynamic> request) {
-    if (game == null) throw Exception("Game not found. Ensure game is set.");
     if (_firebaseRoomCommunicator == null) {
       throw Exception("A room has not been joined.");
     }

@@ -17,7 +17,6 @@ class FirebaseRoomCommunicator {
   static const _eventsCollectionName = "Events";
   static const _eventLimit = 100;
 
-  late Game game;
   late Player player;
   late DocumentReference<Map<String, dynamic>> roomReference;
   late Room room;
@@ -42,8 +41,7 @@ class FirebaseRoomCommunicator {
 
   DocumentReference<Map<String, dynamic>>? _concatenatedEventReference;
 
-  FirebaseRoomCommunicator(
-      this.game, this.player, this.roomReference, this.room) {
+  FirebaseRoomCommunicator(this.player, this.roomReference, this.room) {
     _joinRoomResponse = Completer();
     _roomDataStreamController = StreamController<RoomData>();
 
@@ -85,7 +83,6 @@ class FirebaseRoomCommunicator {
   static Future<FirebaseRoomCommunicator> createRoom(
       {required Game game, required Player player, String? password}) async {
     final firebaseRoomCommunicator = FirebaseRoomCommunicator(
-        game,
         player,
         await FirebaseFirestore.instance
             .collection(getRoomCollectionName(game))
@@ -115,7 +112,6 @@ class FirebaseRoomCommunicator {
             roomSnapshot["password"] != password) ||
         !roomSnapshot.exists) return null;
     final firebaseRoomCommunicator = FirebaseRoomCommunicator(
-        game,
         player,
         roomSnapshot.reference,
         Room.createRoom(
