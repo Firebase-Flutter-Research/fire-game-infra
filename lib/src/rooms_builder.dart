@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_fire_engine/model/firebase_room_communicator.dart';
-import 'package:flutter_fire_engine/model/firebase_room_data.dart';
-import 'package:flutter_fire_engine/model/game.dart';
+
+import 'firebase_room_communicator.dart';
+import 'firebase_room_data.dart';
+import 'game.dart';
 
 class RoomsBuilder extends StatelessWidget {
   final Game game;

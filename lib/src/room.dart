@@ -1,9 +1,10 @@
 import 'dart:math';
 
 import 'package:either_dart/either.dart';
-import 'package:flutter_fire_engine/model/event.dart';
-import 'package:flutter_fire_engine/model/game.dart';
-import 'package:flutter_fire_engine/model/player.dart';
+
+import 'event.dart';
+import 'game.dart';
+import 'player.dart';
 
 class GameHasNotStarted extends CheckResultFailure {
   const GameHasNotStarted() : super("Game has not been started");

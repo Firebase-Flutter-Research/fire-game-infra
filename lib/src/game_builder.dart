@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_fire_engine/model/game.dart';
-import 'package:flutter_fire_engine/model/game_manager.dart';
-import 'package:flutter_fire_engine/model/room.dart';
+
+import 'game.dart';
+import 'game_manager.dart';
+import 'room.dart';
 
 class GameBuilder<T extends GameState> extends StatelessWidget {
   final GameManager? gameManager;

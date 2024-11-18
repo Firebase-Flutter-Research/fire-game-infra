@@ -1,8 +1,8 @@
 import 'dart:math';
 
 import 'package:either_dart/either.dart';
-import 'package:flutter_fire_engine/model/event.dart';
-import 'package:flutter_fire_engine/model/player.dart';
+import 'event.dart';
+import 'player.dart';
 
 abstract class CheckResult {
   final String? message;

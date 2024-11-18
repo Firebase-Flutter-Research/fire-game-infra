@@ -3,12 +3,13 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:either_dart/either.dart';
-import 'package:flutter_fire_engine/model/event.dart';
-import 'package:flutter_fire_engine/model/firebase_room_communicator.dart';
-import 'package:flutter_fire_engine/model/firebase_room_data.dart';
-import 'package:flutter_fire_engine/model/game.dart';
-import 'package:flutter_fire_engine/model/player.dart';
-import 'package:flutter_fire_engine/model/room.dart';
+
+import 'event.dart';
+import 'firebase_room_communicator.dart';
+import 'firebase_room_data.dart';
+import 'game.dart';
+import 'player.dart';
+import 'room.dart';
 
 class GameManager {
   static final _gameManager =

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_fire_engine/model/player.dart';
+
+import 'player.dart';
 
 enum EventType {
   gameEvent(key: "gameEvent"),

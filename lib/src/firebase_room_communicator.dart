@@ -3,10 +3,11 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:either_dart/either.dart';
-import 'package:flutter_fire_engine/model/event.dart';
-import 'package:flutter_fire_engine/model/game.dart';
-import 'package:flutter_fire_engine/model/player.dart';
-import 'package:flutter_fire_engine/model/room.dart';
+
+import 'event.dart';
+import 'game.dart';
+import 'player.dart';
+import 'room.dart';
 
 class NotRoomHost extends CheckResultFailure {
   const NotRoomHost() : super("Player is not the room's host");

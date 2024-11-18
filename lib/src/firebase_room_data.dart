@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_fire_engine/model/game.dart';
-import 'package:flutter_fire_engine/model/player.dart';
+
+import 'game.dart';
+import 'player.dart';
 
 class FirebaseRoomData {
   final Game game;
