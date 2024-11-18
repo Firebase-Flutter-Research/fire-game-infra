@@ -26,9 +26,8 @@ class RoomData {
   final List<Player> players;
   final Player host;
   final List<Event> events;
-  final Map<String, dynamic>? gameState;
 
-  bool get gameStarted => gameState != null;
+  bool get gameStarted => this is RoomDataGameState;
   bool get hasRequiredPlayers => players.length >= game.requiredPlayers;
   bool get isOvercapacity => players.length > game.playerLimit;
 
@@ -36,11 +35,27 @@ class RoomData {
       {required this.game,
       required this.players,
       required this.host,
-      required this.events,
+      required this.events});
+}
+
+class RoomDataGameState<T extends GameState> extends RoomData {
+  final T gameState;
+
+  const RoomDataGameState(
+      {required super.game,
+      required super.players,
+      required super.host,
+      required super.events,
       required this.gameState});
 
-  dynamic operator [](String key) {
-    return gameState?[key];
+  RoomDataGameState<U> cast<U extends GameState>() {
+    return RoomDataGameState<U>(
+      game: game,
+      players: players,
+      host: host,
+      events: events,
+      gameState: gameState as U,
+    );
   }
 }
 
@@ -49,7 +64,7 @@ class Room {
   List<Player> players;
   Player host;
   List<Event> events;
-  Map<String, dynamic>? gameState;
+  GameState? gameState;
   late Random random;
 
   Room(
@@ -143,12 +158,19 @@ class Room {
   }
 
   RoomData getRoomData() {
+    if (gameStarted) {
+      return RoomDataGameState(
+          game: game,
+          players: players.toList(),
+          host: host,
+          events: events.toList(),
+          gameState: gameState!);
+    }
     return RoomData(
         game: game,
         players: players.toList(),
         host: host,
-        events: events.toList(),
-        gameState: gameStarted ? Map.from(gameState!) : null);
+        events: events.toList());
   }
 
   Either<CheckResultFailure, dynamic> getGameResponse(
