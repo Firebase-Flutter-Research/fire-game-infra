@@ -13,7 +13,7 @@ This is a Flutter package that simplifies the development of online multiplayer 
 Add the following line to your `pubspec.yaml` file:
 ```yaml 
 dependencies:
-  fire_game_infra: ^0.1.0
+  fire_game_infra: ^0.1.1
 ```
 Run `flutter pub get` to fetch the package.
 
@@ -23,217 +23,70 @@ This package assumes that you have properly set up Firebase in your app.
 
 ## Usage
 
-Example: Counter Game
-
-The following example demonstrates how to build a simple counter-based multiplayer game.
-
-Flutter Code:
+To create a game you must define a game and game state class.
 ```dart
-import 'package:fire_game_example/counter_game.dart';
-import 'package:fire_game_infra/fire_game_infra.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-      options: const FirebaseOptions(/*Enter your Firebase credentials here*/));
-  runApp(const MyApp());
+class SomeGameState extends GameState {
+  // Define your game state fields.
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const RoomsPage(),
-    );
-  }
-}
-
-class RoomsPage extends StatelessWidget {
-  const RoomsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final game = CounterGame();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Room Select"),
-      ),
-      body: RoomsBuilder(
-          game: game,
-          builder: (context, list) => SingleChildScrollView(
-                child: Column(
-                  children: list
-                      .map((e) => ElevatedButton(
-                          onPressed: () async {
-                            if (await GameManager.instance.joinRoom(e)) {
-                              Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (context) => const MyHomePage()));
-                            }
-                          },
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: Center(
-                              child: Text(
-                                  "${e.host.name}'s Room (${e.playerCount}/${e.game.playerLimit})"),
-                            ),
-                          )))
-                      .toList(),
-                ),
-              )),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          if (await GameManager.instance.createRoom(game)) {
-            Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const MyHomePage()));
-          }
-        },
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-}
-
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
-
-  void _incrementCounter() {
-    // Empty event payload since action can only be an increment.
-    GameManager.instance.sendGameEvent({});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (popped, value) async {
-        if (popped) return;
-        await GameManager.instance.leaveRoom();
-        Navigator.pop(context);
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("In-Game"),
-        ),
-        body: GameBuilder<CounterGameState>(
-          notStartedBuilder: (context, roomData, gameManager) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                    "Players (${roomData.players.length}/${roomData.game.playerLimit})"),
-                if (roomData.hasRequiredPlayers &&
-                    gameManager.player == roomData.host)
-                  TextButton(
-                      onPressed: gameManager.startGame,
-                      child: const Text("Start Game")),
-                if (roomData.hasRequiredPlayers &&
-                    gameManager.player != roomData.host)
-                  const Text("Waiting for host to start..."),
-              ],
-            ),
-          ),
-          gameStartedBuilder: (context, roomData, gameManager) => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Text(
-                  'You have pushed the button this many times:',
-                ),
-                Text(
-                  '${roomData.gameState.value}',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ],
-            ),
-          ),
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _incrementCounter,
-          tooltip: 'Increment',
-          child: const Icon(Icons.add),
-        ),
-      ),
-    );
-  }
+class SomeGame extends Game {
+  // Override all of the necessary game rule functions.
 }
 ```
 
-Game implementation:
+Once you have your game implementation completed, you can create a room through the GameManager.
 ```dart
-import 'dart:math';
+final gameManager = GameManager.instance;
+final game = SomeGame();
+await gameManager.createRoom(game);
+```
 
-import 'package:fire_game_infra/fire_game_infra.dart';
-
-class CounterGameState extends GameState {
-  int value = 0;
+Using the RoomsBuilder widget, you can create a UI list of available rooms for the game and join the specific one.
+```dart
+RoomsBuilder(
+  game: game,
+  builder: (context, roomDataList) => // Build rooms list using Firebase room data objects.
+);
+```
+```dart
+Future<void> _joinRoom(FirebaseRoomData roomData) async {
+  await GameManager.instance.joinRoom(roomData);
 }
+```
 
-class CounterGame extends Game {
-  @override
-  String get name => "Counter";
+You can also leave a room by calling the "leaveRoom" function.
+```dart
+await GameManager.instance.leaveRoom();
+```
 
-  @override
-  int get requiredPlayers => 1;
+Once a room has been joined, its contents can be displayed using the GameBuilder widget.
+```dart
+GameBuilder<SomeGameState>(
+  notStartedBuilder: (context, roomData, gameManager) => /*Display room data when game has not started.*/,
+  gameStartedBuilder: (context, roomData, gameManager) => /*Display room data when game has started. This builder has access to the game state.*/,
+);
+```
 
-  @override
-  int get playerLimit => 10;
+You can start and manually stop a game.
+```dart
+final gameManager = GameManager.instance;
+await gameManager.startGame();
+await gameManager.stopGame();
+```
 
-  @override
-  GameState getInitialGameState(
-      {required List<Player> players,
-      required Player host,
-      required Random random}) {
-    return CounterGameState();
-  }
+Send events to update the shared game state via GameManager. Events sent will be processed by the "processEvent" rule within Game, and will automatically update the room data shown by GameBuilder.
+```dart
+await GameManager.instance.sendGameEvent({"field": "value"});
+```
 
-  @override
-  CheckResult checkPerformEvent(
-      {required Map<String, dynamic> event,
-      required Player player,
-      required GameState gameState,
-      required List<Player> players,
-      required Player host}) {
-    return const CheckResultSuccess();
-  }
+Define callbacks to react to certain situations, such as when a game event is received, when the game stops, etc.
+```dart
+final gameManager = GameManager.instance;
 
-  @override
-  void processEvent(
-      {required GameEvent event,
-      required covariant CounterGameState gameState,
-      required List<Player> players,
-      required Player host,
-      required Random random}) {
-    gameState.value++;
-  }
+gameManager.setOnGameEvent<SomeGameState>((event, state) { /* Event reaction logic. */ });
 
-  @override
-  void onPlayerLeave(
-      {required Player player,
-      required GameState gameState,
-      required List<Player> players,
-      required List<Player> oldPlayers,
-      required Player host,
-      required Random random}) {}
-
-  @override
-  Map<String, dynamic>? checkGameEnd(
-      {required GameState gameState,
-      required List<Player> players,
-      required Player host,
-      required Random random}) {
-    return null;
-  }
-}
+// Log will be populated if game stop was triggered by the "checkGameEnd" rule within Game.
+gameManager.setOnGameStop((log) { /* Game stop reaction logic. */ });
 ```
 
 ## Additional Resources
