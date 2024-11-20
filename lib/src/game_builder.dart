@@ -2,14 +2,24 @@ import 'package:flutter/material.dart';
 
 import 'game.dart';
 import 'game_manager.dart';
-import 'room.dart';
+import 'room_data.dart';
 
+/// Receive live updates from the connected room from Firebase.
 class GameBuilder<T extends GameState> extends StatelessWidget {
+  /// Game manager to interact with.
   final GameManager? gameManager;
+
+  /// Build widget when game has started.
   final Widget Function(BuildContext, RoomDataGameState<T>, GameManager)
       gameStartedBuilder;
+
+  /// Build widget when game has not started.
   final Widget Function(BuildContext, RoomData, GameManager) notStartedBuilder;
+
+  /// Build widget when there is no data.
   final Widget Function(BuildContext)? loadingBuilder;
+
+  /// Build widget when there is an error.
   final Widget Function(BuildContext, Object, StackTrace?)? errorBuilder;
 
   const GameBuilder(

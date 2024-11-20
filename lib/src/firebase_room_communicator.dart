@@ -4,14 +4,13 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:either_dart/either.dart';
 
+import 'check_result.dart';
 import 'event.dart';
 import 'game.dart';
+import 'game_event.dart';
 import 'player.dart';
 import 'room.dart';
-
-class NotRoomHost extends CheckResultFailure {
-  const NotRoomHost() : super("Player is not the room's host");
-}
+import 'room_data.dart';
 
 class FirebaseRoomCommunicator {
   static const _collectionPrefix = "Rooms";
