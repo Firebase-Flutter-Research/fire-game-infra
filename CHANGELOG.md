@@ -1,3 +1,6 @@
-## 0.0.1
+## 0.1.0
 
-* TODO: Describe initial release.
+- Add GameManager
+- Add Game and GameState interfaces
+- Add GameBuilder and RoomsBuilder widgets
+- Add RoomData, RoomDataGameState, and FirebaseRoomData
