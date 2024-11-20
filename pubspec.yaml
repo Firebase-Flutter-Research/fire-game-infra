@@ -1,6 +1,7 @@
 name: fire_game_infra
 description: "A Flutter package for creating online multiplayer games using Firebase, featuring real-time game state management."
 version: 0.1.0
+repository: "https://github.com/Firebase-Flutter-Research/fire-game-infra"
 
 environment:
   sdk: ^3.4.0
