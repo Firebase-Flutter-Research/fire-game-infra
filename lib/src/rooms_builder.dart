@@ -4,10 +4,18 @@ import 'firebase_room_communicator.dart';
 import 'firebase_room_data.dart';
 import 'game.dart';
 
+/// Receive live updates of the list of rooms for the specified game from Firebase.
 class RoomsBuilder extends StatelessWidget {
+  /// Game to find rooms for.
   final Game game;
+
+  /// Build widget that accesses the list of rooms.
   final Widget Function(BuildContext, List<FirebaseRoomData>) builder;
+
+  /// Build widget when there is no data.
   final Widget Function(BuildContext)? loadingBuilder;
+
+  /// Build widget when there is an error.
   final Widget Function(BuildContext, Object, StackTrace?)? errorBuilder;
 
   const RoomsBuilder(

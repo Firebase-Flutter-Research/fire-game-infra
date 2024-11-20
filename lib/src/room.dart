@@ -2,63 +2,12 @@ import 'dart:math';
 
 import 'package:either_dart/either.dart';
 
+import 'check_result.dart';
 import 'event.dart';
 import 'game.dart';
+import 'game_event.dart';
 import 'player.dart';
-
-class GameHasNotStarted extends CheckResultFailure {
-  const GameHasNotStarted() : super("Game has not been started");
-}
-
-class GameHasStarted extends CheckResultFailure {
-  const GameHasStarted() : super("Game has already been started");
-}
-
-class NotEnoughPlayers extends CheckResultFailure {
-  const NotEnoughPlayers() : super("Not enough players to start game");
-}
-
-class TooManyPlayers extends CheckResultFailure {
-  const TooManyPlayers() : super("There are too many players in the room");
-}
-
-class RoomData {
-  final Game game;
-  final List<Player> players;
-  final Player host;
-  final List<Event> events;
-
-  bool get gameStarted => this is RoomDataGameState;
-  bool get hasRequiredPlayers => players.length >= game.requiredPlayers;
-  bool get isOvercapacity => players.length > game.playerLimit;
-
-  const RoomData(
-      {required this.game,
-      required this.players,
-      required this.host,
-      required this.events});
-}
-
-class RoomDataGameState<T extends GameState> extends RoomData {
-  final T gameState;
-
-  const RoomDataGameState(
-      {required super.game,
-      required super.players,
-      required super.host,
-      required super.events,
-      required this.gameState});
-
-  RoomDataGameState<U> cast<U extends GameState>() {
-    return RoomDataGameState<U>(
-      game: game,
-      players: players,
-      host: host,
-      events: events,
-      gameState: gameState as U,
-    );
-  }
-}
+import 'room_data.dart';
 
 class Room {
   Game game;

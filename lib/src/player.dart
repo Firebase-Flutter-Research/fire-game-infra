@@ -1,3 +1,4 @@
+/// Player representation.
 class Player {
   final int id;
   String name;
